@@ -3,7 +3,9 @@ import "gantt-task-react/dist/index.css";
 import { Supabase } from "../config/supabase-config";
 import { TaskProvider } from '../context/TaskContext';
 import { FiLogOut } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import CreateTask from "../Component/CreateTask";
+import { FaCircleUser } from "react-icons/fa6";
 
 
 import {
@@ -16,6 +18,9 @@ import "dhtmlx-gantt/codebase/dhtmlxgantt.css";
 import FetchTasks from "../Component/FetchTasks";
 import GanttWithProgress from "../Component/GanttWithProgress";
 import Tasks from "../Component/Tasks";
+import GanttBar from "../Component/GanttBar";
+import ProductList from "../Component/ProductList";
+import ProjectList from "../Component/ProjectList";
 
 const initialTasks = [
 
@@ -84,37 +89,6 @@ const SubAdmin = () => {
   };
   
  
-
-  const [project, setProject] = useState("");
-  const [error, setError] = useState("");
-
-  const handleProjectSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-
-    if (!project.trim()) {
-      setError("Project name cannot be empty");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const { data, error } = await Supabase.from("gantt-projects").insert([{ project }]);
-
-      if (error) {
-        setError("Failed to create project");
-        console.error(error);
-      } else {
-        alert("Project created successfully");
-        setProject(""); // reset input
-      }
-    } catch (err) {
-      setError("Unexpected error occurred");
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const [projects, setProjects] = useState([]);
   const [activatedProject, setActivatedProject] = useState(() => {
@@ -207,32 +181,14 @@ const SubAdmin = () => {
     const { data, error } = await Supabase
       .from("gantt")
       .select("id, username, role, status");
-
-    if (!error) setUsers(data);
+  
+    if (!error) {
+      const filteredUsers = data.filter(user => user.role !== "admin");
+      setUsers(filteredUsers);
+    }
     setLoading(false);
   };
-
-  const toggleSuspend = async (id, currentStatus) => {
-    setUpdatingUserId(id);
-    const { error } = await Supabase
-      .from("gantt")
-      .update({ status: currentStatus === "active" ? "suspended" : "active" })
-      .eq("id", id);
-
-    if (!error) fetchUsers();
-    setUpdatingUserId(null);
-  };
-
-  const updateRole = async (id, newRole) => {
-    setUpdatingUserId(id);
-    const { error } = await Supabase
-      .from("gantt")
-      .update({ role: newRole })
-      .eq("id", id);
-
-    if (!error) fetchUsers();
-    setUpdatingUserId(null);
-  };
+  
 
   useEffect(() => {
     fetchUsers();
@@ -245,8 +201,12 @@ const SubAdmin = () => {
       setUsernames(storedUser.usernames);
     }
   }, []);
+
   
   
+  function AddTask(){
+    setAddNewTask(!addNewTask)
+}
 
 
   
@@ -264,12 +224,16 @@ const SubAdmin = () => {
             }}>
                 <h1 className="title-xl">GreyHub Management Dashboard</h1>
                 <div className="flex gap">
-                
+                  <Link to='/project' style={{cursor:'pointer', textDecoration:'none', fontSize:'28px', color:'#fff'}}><FaCircleUser /></Link>
+
                 </div>
             </div>
-            <div className="admin-logout" onClick={handleLogout} style={{ cursor: "pointer" }}>
-              <FiLogOut />
-              <h4>LogOut</h4>
+            <div className="admin-logout">
+              <h4 style={{fontSize:'18px', fontWeight:600, marginRight:"9px", color:'#fff'}}>{username}</h4>
+              <div  onClick={handleLogout} style={{ cursor: "pointer",color:'#fff', display:'flex', alignItems:'center', gap:'8px' }}>
+                <FiLogOut style={{color:'#fff'}}/>
+                <h4 style={{color:'#fff'}}>LogOut</h4>
+              </div>
             </div>
         </div>
         <div className="container">
@@ -277,14 +241,18 @@ const SubAdmin = () => {
 
             <div className={`main-s ${isZoomed ? "zoom-mode" : ""}`}>
                 
-                <div className={`gantt ${isZoomed ? "fullscreen-gantt" : ""}`}>
+            <div className={`gantt ${isZoomed ? "fullscreen-gantt" : ""}`}>
                     <div className="z-btn">
                     <h3>GANTT</h3>
                     <button className="zoom" onClick={toggleZoom}>
                         {isZoomed ? "EXIT ZOOM" : "ZOOM VIEW"}
                     </button>
                     </div>
-                    <GanttWithProgress/>
+                    <div className="gantt-scroll">
+
+                      <GanttBar/>
+                    </div>
+                    
                 </div>
                 
 
@@ -294,31 +262,9 @@ const SubAdmin = () => {
                             <h3 className="title-md" style={{ fontSize: '18px', fontWeight: '600', margin: 0, color: '#1e293b' }}>Projects</h3>
                             
                         </div>
-                    
-                        {loading ? (
-                          <p>Loading projects...</p>
-                        ) : projects.length === 0 ? (
-                          <p>No projects created yet.</p>
-                        ) : (
-                          projects.map(({ project }) => (
-                            <h4
-                              key={project}
-                              className={`project ${activeProject === project ? "active" : ""}`}
-                              onClick={() => handleProjectClick(project)}
-                              style={{
-                                cursor: "pointer",
-                                backgroundColor: activeProject === project ? "#1e293b" : "#f1f5f9",
-                                color: activeProject === project ? "white" : "black",
-                                padding: "10px",
-                                borderRadius: "6px",
-                                marginBottom: "6px",
-                              }}
-                            >
-                              {project}
-                            </h4>
-                          ))
-                        )}
-
+                        <div className="task-scroll">
+                          <ProjectList/>
+                        </div>
                     
                     </aside>
                 )}
@@ -329,21 +275,48 @@ const SubAdmin = () => {
                     <aside className="sidebar card">
                     <div className="flex-between mb">
                         <h3 className="title-md">Tasks Checklist</h3>
-                        
+                        <button className="icon-btn-sm" onClick={AddTask} style={{
+                            background: '#000',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '14px'
+                            }}>
+                            <PlusCircle className="icon" /> Add
+                        </button>
                     </div>
+                    <h3 style={{ fontSize: "16px" }}>All Tasks</h3>
+                    <div className="task-scroll" style={{marginTop:'15px'}}>
                       <Tasks/>
-
-            
+                      
+                    </div>
                     
                     </aside>
 
-                    
+                    {
+                        addNewTask ? (<>
+
+                        <div className="taskmodal" >
+                        
+                          <CreateTask addNewTask={addNewTask} setAddNewTask={setAddNewTask}/>
+
+                        </div>
+                        </>) : null
+                    }
 
                     <aside className="sidebar card">
                       <div className="flex-between mb">
                         <h3 className="title-md">Personal Checklist</h3>
                       </div>
+                      <div className="task-scroll" style={{marginTop:'15px'}}>
                       <FetchTasks/>
+                      
+                    </div>
                     </aside>
 
 
@@ -355,22 +328,24 @@ const SubAdmin = () => {
                         <p className="text-sm">
                         Add users, assign roles, and manage department access.
                         </p>
-                        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "20px" }}>
-                          <thead>
-                            <tr style={{ background: "#f1f5f9" }}>
-                              <th style={{ padding: "8px", border: "1px solid #ccc", textAlign:'start' }}>Username</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {users.map((user) => (
-                              <tr key={user.id}>
-                                <td style={{ padding: "8px", border: "1px solid #eee" }}>{user.username}</td>
-                                
-                                
+                        <div className="table">
+                          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "20px" }}>
+                            <thead>
+                              <tr style={{ background: "#f1f5f9" }}>
+                                <th style={{ padding: "8px", border: "1px solid #ccc", textAlign:'start' }}>Users</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {users.map((user) => (
+                                <tr key={user.id}>
+                                  <td style={{ padding: "8px", border: "1px solid #eee" }}>{user.username}</td>
+                                  
+                                  
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                     </div>
                 </div>
 

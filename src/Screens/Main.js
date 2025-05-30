@@ -4,9 +4,12 @@ import { Supabase } from "../config/supabase-config";
 import { TaskProvider } from '../context/TaskContext';
 import { FiLogOut } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
+import { FaCircleUser } from "react-icons/fa6";
+import { Link } from "react-router-dom";
 
 
 import {
+  
     PlusCircle,
     Users,
     
@@ -18,6 +21,8 @@ import CreateDepartment from "../Component/CreateDepartment";
 import TaskList from "../Component/TaskList";
 import FetchTasks from "../Component/FetchTasks";
 import GanttWithProgress from "../Component/GanttWithProgress";
+import ProductList from "../Component/ProductList";
+import PersonalProjects from "../Component/PersonalProjects";
 
 const initialTasks = [
 
@@ -136,6 +141,9 @@ const Main = () => {
       } else {
         alert("User created successfully.");
         setFormData(initialValues); // reset form
+        setAddNewUser(!addNewUser)
+        window.location.reload();
+
       }
     } catch (err) {
       console.error("Unexpected error:", err);
@@ -167,6 +175,8 @@ const Main = () => {
       } else {
         alert("Project created successfully");
         setProject(""); // reset input
+        setAddNewProject(!addNewProject)
+        window.location.reload();
       }
     } catch (err) {
       setError("Unexpected error occurred");
@@ -211,25 +221,6 @@ const Main = () => {
     fetchProjects();
   }, []);
 
-  const handleProjectClick = (project) => {
-    setActivatedProject(project);
-    localStorage.setItem("activProject", project);
-  };
-
-  useEffect(() => {
-    const fetchProjects = async () => {
-      const { data, error } = await Supabase.from("gantt-projects").select("project");
-      if (error) {
-        console.error("Error fetching projects:", error);
-        setProjects([]);
-      } else {
-        setProjects(data);
-      }
-    };
-
-    fetchProjects();
-  }, []);
-  
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -265,8 +256,8 @@ const Main = () => {
   const fetchUsers = async () => {
     setLoading(true);
     const { data, error } = await Supabase
-      .from("gantt")
-      .select("id, username, role, status");
+    .from("gantt")
+    .select("id, username, fullname, role, status");
 
     if (!error) setUsers(data);
     setLoading(false);
@@ -282,6 +273,27 @@ const Main = () => {
     if (!error) fetchUsers();
     setUpdatingUserId(null);
   };
+
+  const deleteUser = async (id) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this user?");
+    if (!confirmDelete) return;
+  
+    setUpdatingUserId(id);
+  
+    const { error } = await Supabase
+      .from("gantt")
+      .delete()
+      .eq("id", id);
+  
+    if (error) {
+      console.error("Delete failed:", error);
+    } else {
+      fetchUsers();
+    }
+  
+    setUpdatingUserId(null);
+  };
+  
 
   const updateRole = async (id, newRole) => {
     setUpdatingUserId(id);
@@ -307,8 +319,62 @@ const Main = () => {
   }, []);
   
   
+  const [openMenuId, setOpenMenuId] = useState(null);
+
+  const [editUser, setEditUser] = useState(null);
+  const [formDatas, setFormDatas] = useState({
+  username: "",
+  fullname: "",
+  password: ""
+  });
+  
+  const [saving, setSaving] = useState(false);
 
 
+  const editUserHandler = (user) => {
+    setEditUser(user);
+    setFormDatas({
+      username: user.username || "",
+      fullname: user.fullname || "",
+      password: ""
+    });
+  };
+  
+
+    const saveEditHandler = async () => {
+      if (!editUser) return;
+
+      setSaving(true);
+      setUpdatingUserId(editUser.id);
+      
+      const updates = {
+      username: formDatas.username,
+      fullname: formDatas.fullname
+      };
+      
+      if (formDatas.password.trim() !== "") {
+      updates.password = formDatas.password;
+      }
+      
+      const { error } = await Supabase
+      .from("gantt")
+      .update(updates)
+      .eq("id", editUser.id);
+      
+      if (!error) {
+        await fetchUsers();
+        setEditUser(null);
+        alert("User updated successfully ✅");
+      } else {
+        alert("Update failed ❌");
+      }
+      setSaving(false);
+      setUpdatingUserId(null);
+      };
+
+
+      
+      
   
     return (
       <TaskProvider>
@@ -323,14 +389,19 @@ const Main = () => {
               alignItems: 'center'
             }}>
                 <h1 className="title-xl">GreyHub Management Dashboard</h1>
-                <div className="flex gap">
-                <button className="btn-primary" onClick={AddDepartment}>Create Departments</button>
-                <button className="btn-outline" onClick={AddUser}>Create Users</button>
+                <div className="flex gap" style={{alignItems:'center'}}>
+                <Link to='/project' style={{cursor:'pointer', textDecoration:'none', fontSize:'26px', color:'#fff', marginTop:'5px'}}><FaCircleUser /></Link>
+
+                <button className="btn-primary" onClick={AddProject}>Create Projects</button>
+                {/* <button className="btn-outline" onClick={AddUser}>Create Users</button> */}
                 </div>
             </div>
-            <div className="admin-logout" onClick={handleLogout} style={{ cursor: "pointer" }}>
-              <FiLogOut />
-              <h4>LogOut</h4>
+            <div className="admin-logout">
+              <h4 style={{fontSize:'18px',color:'#fff', fontWeight:600, marginRight:"9px"}}>{username}</h4>
+              <div  onClick={handleLogout} style={{ cursor: "pointer", display:'flex', alignItems:'center', gap:'8px', color:'#fff' }}>
+                <FiLogOut />
+                <h4 style={{color:'#fff'}}>LogOut</h4>
+              </div>
             </div>
         </div>
         <div className="container">
@@ -345,7 +416,11 @@ const Main = () => {
                         {isZoomed ? "EXIT ZOOM" : "ZOOM VIEW"}
                     </button>
                     </div>
-                    <GanttWithProgress/>
+                    <div className="gantt-scroll">
+
+                      <GanttWithProgress/>
+                    </div>
+                    
                 </div>
                 
 
@@ -364,34 +439,16 @@ const Main = () => {
                                 alignItems: 'center',
                                 gap: '6px',
                                 fontSize: '14px'
-                                }} className="icon-btn-sm" onClick={AddProject}>
-                                <PlusCircle className="icon" /> Add
+                                }} className="icon-btn-sm" onClick={AddDepartment}>
+                                <PlusCircle className="icon" /> Add Dept
                             </button>
                         </div>
                     
-                        {loading ? (
-                          <p>Loading projects...</p>
-                        ) : projects.length === 0 ? (
-                          <p>No projects created yet.</p>
-                        ) : (
-                          projects.map(({ project }) => (
-                            <h4
-                              key={project}
-                              className={`project ${activeProject === project ? "active" : ""}`}
-                              onClick={() => handleProjectClick(project)}
-                              style={{
-                                cursor: "pointer",
-                                backgroundColor: activeProject === project ? "#1e293b" : "#f1f5f9",
-                                color: activeProject === project ? "white" : "black",
-                                padding: "10px",
-                                borderRadius: "6px",
-                                marginBottom: "6px",
-                              }}
-                            >
-                              {project}
-                            </h4>
-                          ))
-                        )}
+                        <div className="task-scroll">
+                        <ProductList/>
+                        
+                        </div>
+                        
 
                     
                     </aside>
@@ -418,7 +475,13 @@ const Main = () => {
                             <PlusCircle className="icon" /> Add
                         </button>
                     </div>
+                    <h3 style={{ fontSize: "16px" }}>All Tasks</h3>
+
+                    <div className="task-scroll" style={{marginTop:'15px'}}>
                       <TaskList/>
+                      
+                    </div>
+                      
 
                     {
                         addNewTask ? (<>
@@ -563,69 +626,234 @@ const Main = () => {
                       <div className="flex-between mb">
                         <h3 className="title-md">Personal Checklist</h3>
                       </div>
-                      <FetchTasks/>
+                      <h3 style={{ marginBottom: "10px", fontSize: '17px' }}>
+                          Tasks for <strong>{username}</strong>
+                      </h3>
+
+                      <div className="task-scroll">
+                        <FetchTasks/>
+                      </div>
+                      
+                      
                     </aside>
 
 
                     <div className="sidebar card">
+                        <div style={{display:'flex', justifyContent:'end', marginBottom:'10px'}}>
+                          <button className="btn-outline" onClick={AddUser}>Create Users</button>
+
+                        </div>
                         <div className="flex gap mb">
+                          
                         <Users className="icon-purple" />
+
                         <h3 className="title-md">User Management</h3>
                         </div>
                         <p className="text-sm">
                         Add users, assign roles, and manage department access.
                         </p>
-                        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "20px" }}>
-                          <thead>
-                            <tr style={{ background: "#f1f5f9" }}>
-                              <th style={{ padding: "8px", border: "1px solid #ccc" }}>Username</th>
-                              <th style={{ padding: "8px", border: "1px solid #ccc" }}>Role</th>
-                              <th style={{ padding: "8px", border: "1px solid #ccc" }}>Status</th>
-                              <th style={{ padding: "8px", border: "1px solid #ccc" }}>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {users.map((user) => (
-                              <tr key={user.id}>
-                                <td style={{ padding: "8px", border: "1px solid #eee" }}>{user.username}</td>
-                                <td style={{ padding: "8px", border: "1px solid #eee" }}>
-                                  <select
-                                    value={user.role}
-                                    onChange={(e) => updateRole(user.id, e.target.value)}
-                                    disabled={updatingUserId === user.id}
-                                  >
-                                    <option value="user">User</option>
-                                    <option value="admin">Admin</option>
-                                    <option value="subadmin">Sub Admin</option>
-                                  </select>
-                                </td>
-                                <td style={{ padding: "8px", border: "1px solid #eee" }}>
-                                  {user.status}
-                                </td>
-                                <td style={{ padding: "8px", border: "1px solid #eee" }}>
-                                  <button
-                                    onClick={() => toggleSuspend(user.id, user.status)}
-                                    disabled={updatingUserId === user.id}
-                                    style={{
-                                      padding: "5px 10px",
-                                      backgroundColor: user.status === "active" ? "#f87171" : "#4ade80",
-                                      color: "white",
-                                      border: "none",
-                                      borderRadius: "4px",
-                                      cursor: "pointer",
-                                    }}
-                                  >
-                                    {user.status === "active" ? "Suspend" : "Unsuspend"}
-                                  </button>
-                                </td>
+                        <div className="table">
+                          <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "20px" }}>
+                            <thead>
+                              <tr style={{ background: "#f1f5f9" }}>
+                                <th style={{ padding: "8px", border: "1px solid #ccc" }}>Username</th>
+                                <th style={{ padding: "8px", border: "1px solid #ccc" }}>Role</th>
+                                <th style={{ padding: "8px", border: "1px solid #ccc" }}>Status</th>
+                                <th style={{ padding: "8px", border: "1px solid #ccc" }}>Actions</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+
+                              <tbody>
+                              
+                                {users.map((user) => (
+                                  <tr key={user.id}>
+                                    <td style={{ padding: "8px", border: "1px solid #eee" }}>{user.username}</td>
+                                    <td style={{ padding: "8px", border: "1px solid #eee" }}>
+                                    <td style={{ padding: "8px", border: "1px solid #eee" }}>
+                                      {user.role === "admin" ? (
+                                        <span>Admin</span>
+                                      ) : (
+                                        <select
+                                          value={user.role}
+                                          onChange={(e) => updateRole(user.id, e.target.value)}
+                                          disabled={updatingUserId === user.id}
+                                        >
+                                          <option value="user">User</option>
+                                          <option value="subadmin">Sub Admin</option>
+                                        </select>
+                                      )}
+                                    </td>
+
+                                    </td>
+                                    <td style={{ padding: "8px", border: "1px solid #eee" }}>
+                                      {user.status}
+                                    </td>
+                                    {/* <td style={{ padding: "8px", border: "1px solid #eee" }}>
+                                      <button
+                                        onClick={() => toggleSuspend(user.id, user.status)}
+                                        disabled={updatingUserId === user.id}
+                                        style={{
+                                          padding: "5px 10px",
+                                          backgroundColor: user.status === "active" ? "#f87171" : "#4ade80",
+                                          color: "white",
+                                          border: "none",
+                                          borderRadius: "4px",
+                                          cursor: "pointer",
+                                        }}
+                                      >
+                                        {user.status === "active" ? "Suspend" : "Unsuspend"}
+                                      </button>
+                                    </td> */}
+                                    <td style={{ padding: "8px", border: "1px solid #eee", position: "relative" }}> <button onClick={() => setOpenMenuId(openMenuId === user.id ? null : user.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: "18px" }} > ⋮ </button>
+                                    {openMenuId === user.id && (
+                                      <div
+                                        style={{
+                                          position: "absolute",
+                                          top: "30px",
+                                          right: "0",
+                                          background: "#fff",
+                                          border: "1px solid #ccc",
+                                          borderRadius: "4px",
+                                          boxShadow: "0 2px 5px rgba(0,0,0,0.1)",
+                                          zIndex: 1000,
+                                          width: "120px",
+                                        }}
+                                      >
+                                        {/* Only show Suspend/Unsuspend and Delete if not admin */}
+                                        {user.role !== "admin" && (
+                                          <>
+                                            <div
+                                              onClick={() => {
+                                                toggleSuspend(user.id, user.status);
+                                                setOpenMenuId(null);
+                                              }}
+                                              style={{
+                                                fontSize: "13px",
+                                                padding: "8px",
+                                                cursor: "pointer",
+                                                borderBottom: "1px solid #eee",
+                                                color: user.status === "active" ? "#f87171" : "#4ade80",
+                                              }}
+                                            >
+                                              {user.status === "active" ? "Suspend" : "Unsuspend"}
+                                            </div>
+                                          </>
+                                        )}
+
+                                        <div
+                                          onClick={() => editUserHandler(user)}
+                                          style={{
+                                            fontSize: "13px",
+                                            padding: "8px",
+                                            cursor: "pointer",
+                                            color: "#5e5e5e",
+                                            borderBottom: user.role !== "admin" ? "1px solid #eee" : "none",
+                                          }}
+                                        >
+                                          Edit
+                                        </div>
+
+                                        {/* Only show Delete if not admin */}
+                                        {user.role !== "admin" && (
+                                          <div
+                                            onClick={() => {
+                                              deleteUser(user.id);
+                                              setOpenMenuId(null);
+                                            }}
+                                            style={{
+                                              fontSize: "13px",
+                                              padding: "8px",
+                                              cursor: "pointer",
+                                              color: "#ef4444",
+                                            }}
+                                          >
+                                            Delete
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+
+                                    </td>
+
+                                  </tr>
+                                ))}
+                              </tbody>
+                          </table>
+                        </div>
+
+                        {editUser && (
+                          <div className="taskmodal">
+
+                            <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "#fff", padding: "20px", borderRadius: "8px", boxShadow: "0 0 10px rgba(0,0,0,0.2)" }}> 
+                              <h3>Edit User</h3> <br /> 
+                              <label> Username: 
+                              <input
+                                type="text"
+                                value={formDatas.username}
+                                onChange={(e) => setFormDatas({ ...formDatas, username: e.target.value })}
+                                style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
+                              /> 
+                              </label> <br /> 
+                              <label> Full Name: 
+                              <input
+                                type="text"
+                                value={formDatas.fullname}
+                                style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
+                                onChange={(e) => setFormDatas({ ...formDatas, fullname: e.target.value })}
+                              />
+
+                              </label> <br /> 
+                              <label> Password:
+                              <input
+                                type="password"
+                                value={formDatas.password}
+                                onChange={(e) => setFormData({ ...formDatas, password: e.target.value })}
+                                placeholder="Leave blank to keep current password"
+                                style={{ width: "100%", padding: "8px", marginBottom: "10px" }}
+                              />
+                                
+                              </label> <br /> 
+                              <div style={{ marginTop: "10px" }}>
+                              <button
+                                  onClick={saveEditHandler}
+                                  disabled={saving}
+                                  style={{
+                                    padding: "8px 16px",
+                                    backgroundColor: saving ? "#ccc" : "#2563eb",
+                                    color: "#fff",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor: saving ? "not-allowed" : "pointer"
+                                  }}
+                                >
+                                  {saving ? "Saving..." : "Save Changes"}
+                                </button>
+
+                                <button
+                                  onClick={() => setEditUser(null)}
+                                  style={{
+                                    padding: "8px 16px",
+                                    backgroundColor: "#e5e7eb",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    cursor:'pointer'
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                              </div>
+                          </div>
+                              
+                          )}
                     </div>
                 </div>
 
+                
+
             </div>
+            <PersonalProjects/>
         </div>
       </TaskProvider>
   )

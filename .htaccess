@@ -1,0 +1,17 @@
+# Enable the Rewrite Engine  
+RewriteEngine On  
+
+# Set the base directory for relative paths  
+RewriteBase /  
+
+# Exclude the index.html file from rewrites  
+RewriteRule ^index\.html$ - [L]  
+
+# Conditionally check if the request is not for a file or a directory  
+RewriteCond %{REQUEST_FILENAME} !-f  
+RewriteCond %{REQUEST_FILENAME} !-d  
+
+# Redirect all other requests to index.html  
+RewriteRule . /index.html [L]  
+
+

@@ -41,7 +41,6 @@ const Tasks = () => {
 
   return (
     <div>
-      <h3 style={{fontSize:'16px'}}>All Tasks</h3>
       {Object.entries(grouped).map(([project, departments]) => (
         <div key={project} style={{ marginBottom: "10px", marginTop:'10px', border: "1px solid #ddd", borderRadius: "8px", padding: "10px" }}>
           <div

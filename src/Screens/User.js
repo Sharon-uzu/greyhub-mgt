@@ -3,13 +3,15 @@ import { useTaskContext } from "../context/TaskContext";import { IoIosLogOut } f
 import { Gantt, ViewMode } from "gantt-task-react";
 import "gantt-task-react/dist/index.css";
 import dayjs from "dayjs";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { TaskProvider } from '../context/TaskContext';
 import GanttWithProgress from "../Component/GanttWithProgress";
 import FetchTasks from "../Component/FetchTasks";
 import DepartmentProgressBars from "../Component/DepartmentProgressBars";
 import DeptTask from "../Component/DeptTask";
 import GanttBar from "../Component/GanttBar";
+import StaffProjects from "../Component/Staffprojects";
+import { FaCircleUser } from "react-icons/fa6";
 
 
 // UI Components
@@ -29,7 +31,9 @@ export default function User() {
   const navigate = useNavigate();
 
   const loggedInUser = JSON.parse(localStorage.getItem("ganttUser"));
-    const username = loggedInUser?.fullname || "";
+    const fullname = loggedInUser?.fullname || "";
+    const username = loggedInUser?.username || "";
+
     console.log(username)
 
     const handleLogout = () => {
@@ -65,37 +69,7 @@ export default function User() {
     ...(project && { project }),
   });
 
-  const personalGanttTasks = [
-    ...devTasks.map((task, i) => generateGanttTask(task, i, "dev")),
-    ...designTasks.map((task, i) => generateGanttTask(task, i, "design")),
-  ];
-
-  const devProgress = getProgress(devTasks);
-  const designProgress = getProgress(designTasks);
-
-  const departmentGanttTasks = [
-    {
-      id: "project-dev",
-      name: "Development (Zipha)",
-      type: "project",
-      start: dayjs().toDate(),
-      end: dayjs().add(devTasks.length, "day").toDate(),
-      progress: devProgress,
-      hideChildren: false,
-    },
-    ...devTasks.map((task, i) => generateGanttTask(task, i, "dev", "project-dev")),
-
-    {
-      id: "project-design",
-      name: "Design (The Keyboard)",
-      type: "project",
-      start: dayjs().toDate(),
-      end: dayjs().add(designTasks.length, "day").toDate(),
-      progress: designProgress,
-      hideChildren: false,
-    },
-    ...designTasks.map((task, i) => generateGanttTask(task, i, "design", "project-design")),
-  ];
+  
 
   const renderTaskList = (tasks, setTasks) =>
     tasks.map((task) => (
@@ -156,19 +130,41 @@ export default function User() {
     }
   }, [tasks, loading]);
 
+  const [userProjects, setUserProjects] = useState([]);
+
+  useEffect(() => {
+    if (!loading && tasks.length > 0) {
+      const userTasks = tasks.filter(task => task.assignedTo === username); // Corrected this line
+  
+      const uniqueProjects = [
+        ...new Set(userTasks.map(task => task.project).filter(Boolean))
+      ];
+  
+      setUserProjects(uniqueProjects);
+    }
+  }, [loading, tasks, username]);
+  
+ 
+
   return (
     <TaskProvider>
       <div className="dashboard-container users-dashboard">
         {/* Sidebar */}
         <div className="user-sidebar">
-          <aside className="sidebar">
-            <h2>PROJECTS</h2>
-            <ul>
-              <li>Zipha</li>
-              <li>The Keyboard</li>
-              <li>FalconGrey</li>
-            </ul>
-          </aside>
+        <aside className="sidebar">
+          <h2>Projects</h2>
+          <ul>
+            {userProjects.length > 0 ? (
+              userProjects.map((project, idx) => (
+                <li style={{color:'#000'}} key={idx}>{project}</li>
+              ))
+            ) : (
+              <li>No projects yet</li>
+            )}
+          </ul>
+        </aside>
+
+
           <div className="logout">
             <h2 onClick={handleLogout} style={{cursor:'pointer'}}>
               <IoIosLogOut className="l-i" /> LogOut
@@ -178,34 +174,41 @@ export default function User() {
 
         {/* Main Content */}
         <main className="main-content">
-          <div className="header">
-            <h1>User Dashboard</h1>
+          <div className="header" style={{width:'100%', color:'#fff', display:'flex', justifyContent:'space-between'}}>
+            <h1>Welcome {fullname}</h1>
+
             <div>
-              Logged in as: <strong>{username}</strong>
+              <Link to='/project' style={{cursor:'pointer', textDecoration:'none', fontSize:'28px', color:'#fff'}}><FaCircleUser /></Link>
             </div>
           </div>
 
           {/* Personal Gantt Chart */}
         
           
-            <Card className={`main-s ${isZoomed ? "zoom-mode" : ""}`}>
-              <div className={`gantt ${isZoomed ? "fullscreen-gantt" : ""}`} >
-                <div className="z-btn">
-                    <h3>Gantt Chart</h3>
-                      <button className="zoom" onClick={toggleZoom}>
-                          {isZoomed ? "EXIT ZOOM" : "ZOOM VIEW"}
-                      </button>
+            <div className={`card main-s ${isZoomed ? "zoom-mode" : ""}`}>
+              <div className={`gantt ${isZoomed ? "fullscreen-gantt" : ""}`}>
+                    <div className="z-btn">
+                    <h3>GANTT</h3>
+                    <button className="zoom" onClick={toggleZoom}>
+                        {isZoomed ? "EXIT ZOOM" : "ZOOM VIEW"}
+                    </button>
+                    </div>
+                    <div className="gantt-scroll">
+
+                      <GanttBar/>
+                    </div>
+                    
                 </div>
-                <GanttBar/>
-              </div>
-            </Card>
+            </div>
           
             <div className="user-checklists dept-tasks">
             <Card>
-              <h2>Department Tasks</h2>
-
               
-              <DeptTask/>
+
+              {/* <div className="tasks-scroll"> */}
+                <DeptTask/>
+                
+              {/* </div> */}
             </Card>
           </div>
 
@@ -215,13 +218,15 @@ export default function User() {
               <h2>Personal Checklist</h2>
 
               
-              <FetchTasks/>
+              {/* <div className="tasks-scroll"> */}
+                <FetchTasks/>
+              {/* </div> */}
             </Card>
           </div>
 
           {/* Department Progress */}
-          <DepartmentProgressBars/>
-
+          {/* <DepartmentProgressBars/> */}
+          <StaffProjects/>
           
         </main>
       </div>

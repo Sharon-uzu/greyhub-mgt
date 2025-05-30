@@ -61,6 +61,7 @@ export default function Login() {
         JSON.stringify({
           username: data.username,
           role: data.role,
+          user_id:data.id,
           fullname: data.fullname, // retrieved from Supabase
         })
       );

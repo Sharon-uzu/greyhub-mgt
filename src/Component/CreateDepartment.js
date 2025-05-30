@@ -1,16 +1,17 @@
-import React, {useState, useEffect} from 'react'
+import React, { useState, useEffect } from "react";
 import { Supabase } from "../config/supabase-config";
 
-const CreateDepartment = ({addNewDepartment, setAddNewDepartment}) => {
-    const [loading, setLoading] = useState(false);
-    const [projects, setProjects] = useState([]);
-    const [departmentName, setDepartmentName] = useState("");
-  const [selectedProject, setSelectedProject] = useState("");
+const CreateDepartment = ({ addNewDepartment, setAddNewDepartment }) => {
+  const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [departmentName, setDepartmentName] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [selectedProjectName, setSelectedProjectName] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchProjects = async () => {
-      const { data, error } = await Supabase.from("gantt-projects").select("project");
+      const { data, error } = await Supabase.from("gantt-projects").select("id, project");
       if (error) {
         console.error("Error fetching projects:", error);
         setProjects([]);
@@ -22,9 +23,20 @@ const CreateDepartment = ({addNewDepartment, setAddNewDepartment}) => {
     fetchProjects();
   }, []);
 
-  function closeDept(){
-    setAddNewDepartment(false)
-  }
+  const closeDept = () => {
+    setAddNewDepartment(false);
+  };
+
+  const handleProjectSelect = (e) => {
+    const selectedId = e.target.value;
+    setSelectedProjectId(selectedId);
+    const selected = projects.find((proj) => proj.id.toString() === selectedId);
+    if (selected) {
+      setSelectedProjectName(selected.project);
+    } else {
+      setSelectedProjectName("");
+    }
+  };
 
   const handleDeptSubmit = async (e) => {
     e.preventDefault();
@@ -34,7 +46,8 @@ const CreateDepartment = ({addNewDepartment, setAddNewDepartment}) => {
       setError("Department name is required.");
       return;
     }
-    if (!selectedProject) {
+
+    if (!selectedProjectId || !selectedProjectName) {
       setError("Please select a project.");
       return;
     }
@@ -44,7 +57,8 @@ const CreateDepartment = ({addNewDepartment, setAddNewDepartment}) => {
       const { error } = await Supabase.from("gantt-depts").insert([
         {
           department: departmentName,
-          project: selectedProject, // Storing project name directly
+          project_id: selectedProjectId,
+          project: selectedProjectName, // also store project name
         },
       ]);
 
@@ -53,9 +67,11 @@ const CreateDepartment = ({addNewDepartment, setAddNewDepartment}) => {
         setError("Failed to create department.");
       } else {
         alert("Department created successfully.");
-        setAddNewDepartment(false)
+        setAddNewDepartment(false);
         setDepartmentName("");
-        setSelectedProject("");
+        setSelectedProjectId("");
+        setSelectedProjectName("");
+        window.location.reload();
       }
     } catch (err) {
       console.error("Unexpected error:", err);
@@ -65,46 +81,44 @@ const CreateDepartment = ({addNewDepartment, setAddNewDepartment}) => {
     }
   };
 
-  
-
   return (
     <form className="task-form">
-        <div className="task-form-c">
-            <h3>Add New Department</h3>
-            <input
-            id="departmentName"
-            type="text"
-            value={departmentName}
-            onChange={(e) => setDepartmentName(e.target.value)}
-            disabled={loading}
-            placeholder="Dept name"
-            
-            />
+      <div className="task-form-c">
+        <h3>Add New Department</h3>
+        <input
+          id="departmentName"
+          type="text"
+          value={departmentName}
+          onChange={(e) => setDepartmentName(e.target.value)}
+          disabled={loading}
+          placeholder="Dept name"
+        />
 
-                <select
-                id="projectSelect"
-                value={selectedProject}
-                onChange={(e) => setSelectedProject(e.target.value)}
-                disabled={loading}
-                >
-                <option value="">-- Select a project --</option>
-                {projects.map((proj, index) => (
-                    <option key={index} value={proj.project}>
-                    {proj.project}
-                    </option>
-                ))}
-                </select>
-            
-                {error && <p style={{ color: "red" }}>{error}</p>}
+        <select
+          id="projectSelect"
+          value={selectedProjectId}
+          onChange={handleProjectSelect}
+          disabled={loading}
+        >
+          <option value="">-- Select a project --</option>
+          {projects.map((proj) => (
+            <option key={proj.id} value={proj.id}>
+              {proj.project}
+            </option>
+          ))}
+        </select>
 
-            
-                <button type="submit" disabled={loading} onClick={handleDeptSubmit}>
-                {loading ? "Creating..." : "Create Department"}
-                </button>
-                <button style={{marginTop:'10px'}} type="button" onClick={closeDept}>Cancel</button>
-        </div>
+        {error && <p style={{ color: "red" }}>{error}</p>}
+
+        <button type="submit" disabled={loading} onClick={handleDeptSubmit}>
+          {loading ? "Creating..." : "Create Department"}
+        </button>
+        <button style={{ marginTop: "10px" }} type="button" onClick={closeDept}>
+          Cancel
+        </button>
+      </div>
     </form>
-  )
-}
+  );
+};
 
-export default CreateDepartment
+export default CreateDepartment;

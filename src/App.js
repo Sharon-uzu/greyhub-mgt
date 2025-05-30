@@ -12,6 +12,8 @@ import Login from './Screens/Login';
 // import { CheckSquare, PlusCircle } from "lucide-react";
 import { TaskProvider } from './context/TaskContext';
 import SubAdmin from './Screens/SubAdmin';
+import TaskManagementSystem from './Screens/TaskManagementSystem';
+import Personal from './Screens/Personal';
 
 
 function App() {
@@ -21,6 +23,7 @@ function App() {
       {/* <Main/> */}
       <Routes>
         <Route path='/' element={<Login/>}/>
+        <Route path='/project' element={<Personal/>}/>
         <Route path='/user' element={
         <TaskProvider>
           <User />
